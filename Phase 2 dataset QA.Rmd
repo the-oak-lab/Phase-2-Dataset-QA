@@ -1,0 +1,196 @@
+---
+title: "Phase 2 Dataset QA"
+author: "Julia"
+date: "2024-06-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Quality Assurance Check
+
+```{r}
+# Load the tidyverse (including ggplot2) and janitor
+library(tidyverse)
+library(janitor)
+```
+
+```{r}
+# Upload data 
+phase2_dat <- read_tsv("Phase2data.txt") |>  janitor::clean_names()
+pretest_dat <- read_tsv("pretest_data.txt") |>  janitor::clean_names()
+practice_dat <- read_tsv("practice_data.txt") |>  janitor::clean_names()
+posttest_dat <- read_tsv("posttest_data.txt") |>  janitor::clean_names()
+```
+
+### Goal of this QA:
+*Check that all conditions that were supposed to happen happened, that participants completed all conditions (and how many didn't), how many trials per condition per participant, that there is pre-post for all conditions for all participants (and how for how many there isn't), etc.*
+
+```{r}
+# check structure of the data
+str(phase2_dat) 
+```
+```{r}
+# get summary of the data
+summary(phase2_dat) 
+```
+***It can be seen that the dataset presents 89,110 rows. However, there may be duplicate records that could inflate the participant count. So, a check for duplicates will be done below.***
+
+```{r}
+# check for duplicates in the participants
+duplicate_check <- phase2_dat |> 
+  group_by(anon_student_id, condition) |> 
+  summarise(count = n()) |> 
+  filter(count > 1)
+
+nrow(duplicate_check)
+head(duplicate_check, 12)
+```
+There are 3,712 duplicates, but if you view the dataset, it can be seen that there are 8 conditions for each duplicated participant. So, there should be around 464 total participants who have completed all 8 conditions.***However, this does not align with our 89,110 total rows in the dataset. This suggests that there might be additional data not accounted for by the 465 participants completing 8 conditons each.***
+
+```{r}
+# verify the total number of unique participants after checking duplicates before
+total_unique_participants <- phase2_dat |> 
+  summarise(unique_participants = n_distinct(anon_student_id))
+total_unique_participants
+```
+***Since there is a mismatch in expected rows and total rows (465 participants, but 89,110 rows), let's find the distribution of entries for participants. The ideal outcome would include most participants with 8 entries. Let's see if there are any anomalies.***
+
+```{r}
+# created a dataframe named 'participant_entries' to show the number of unique "entries" or rows for each participant
+participant_entries <- phase2_dat |> 
+  group_by(anon_student_id) |> 
+  summarise(entries = n())
+
+# Summarize the entries to see the distribution
+entries_distribution <- participant_entries |> 
+  count(entries)
+
+print(participant_entries)
+print(entries_distribution)
+
+```
+***Overall, it can be seen that there are many participants who have 100+ entries/rows (with the greatest number of participants having 200 entries) which accounts for the high row count of 89,110 in the dataset.***Since there are so many entries per participant, we'll need to count the number of trials per participant, which can be shown a few sections below.
+
+### Check for missing values:
+
+```{r}
+# check which columns (variables) have missing values by using 'colSums' function
+colSums(is.na(phase2_dat))
+```
+***From this function, it looks like 'correct_transaction_time', 'step_start_time', 'kc_unique_step', 'opportunity_unique_step', and 'predicted_error_rate_unique_step' have missing values (NAs).***
+
+### Verify all conditions occurred:
+
+```{r}
+# outputs all unique conditions present in the 'condition' column to verify that all conditions are present (all conditions that were supposed to happen happened.)
+unique(phase2_dat$condition)
+```
+### Verify if participants completed all conditions: 
+```{r}
+# check that participants completed all conditions
+participant_conditions <- phase2_dat |> 
+  group_by(anon_student_id) |> 
+  summarise(conditions_completed = n_distinct(condition))
+
+print(paste("Number of participants who completed all conditions:", nrow(participant_conditions))) # count number of participants that completed all conditions
+
+```
+
+```{r}
+# check participants who did not complete all conditions
+incomplete_participant_cond <- participant_conditions |> 
+  filter(conditions_completed < 8)
+
+incomplete_participant_cond
+```
+***A total of 3 participants did not complete all 8 conditions.***
+
+### Count trials per condition per participant
+```{r}
+trials_per_condition <- phase2_dat |> 
+  group_by(anon_student_id, condition) |> 
+  summarise(trials = n())
+
+head(trials_per_condition)
+```
+***The first row shows that there were 16 trials for the first condition for the first participant. Since they completed all 8 conditions, and each condition has differing numbers of trials, this explains how this first participant has 200 entries/rows, as calculated above.***
+
+### Check Pre-Post Data:
+```{r}
+# Check for unique participants in each dataset to see if they match up with the Phase 2 dataset
+unique_pretest <- n_distinct(pretest_dat$anon_student_id)
+unique_posttest <- n_distinct(posttest_dat$anon_student_id)
+unique_practice <- n_distinct(practice_dat$anon_student_id)
+
+print(paste("Unique participants in pretest:", unique_pretest))
+print(paste("Unique participants in posttest:", unique_posttest))
+print(paste("Unique participants in practice:", unique_practice))
+```
+
+***It seems like all 464 participants continued throughout the practice, but only 432 participants were able to take part in the post-test.***
+
+```{r}
+# merge pre-post-practice datasets
+combined_prepost <- bind_rows(pretest_dat, posttest_dat,practice_dat)  
+
+# Check for pre-post data for all conditions for all participants
+prepost_check <- combined_prepost |> 
+  group_by(anon_student_id, condition) |> 
+  summarise(present_test_types = n_distinct(sample)) |>
+  filter(present_test_types > 2) 
+
+unique_participants <- prepost_check |> 
+  summarise(unique_participants_with_prepost = n_distinct(anon_student_id))
+
+# Check for participants missing pre-post data
+missing_prepost <- combined_prepost |> 
+  group_by(anon_student_id, condition) |> 
+  summarise(present_test_types = n_distinct(sample)) |> 
+  filter(present_test_types < 3) |> 
+  summarise(unique_missing_prepost = n_distinct(anon_student_id))
+
+print(paste("Number of unique participants with pretest, posttest, or practice data for any condition:", nrow(unique_participants)))
+print(paste("Number of unique participants missing pretest, posttest, or practice data for any condition:", nrow(missing_prepost)))
+  
+```
+* Number of unique participants ***with*** pretest, posttest, or practice data for any condition: 431
+* Number of unique participants ***missing*** pretest, posttest, or practice data for any condition: 46
+
+```{r}
+# check how many trials there were for each condition per student in the pretest, experiment, and posttest
+trials_per_condition <- combined_prepost |> 
+  group_by(anon_student_id, condition, sample) |> 
+  summarise(trials = n(), .groups = 'drop')
+
+head(trials_per_condition) # display only the first 6 rows
+```
+### Check how many times, across the entire sample of students who completed everything, each question was seen:
+```{r}
+# first, group by student id and condition to see the distribution of test types and then filter by 'conditions_completed' to only include participants who have completed all conditions and tests 
+num_questions <- combined_prepost |> 
+  group_by(anon_student_id, condition) |> 
+  summarise(present_test_types = n_distinct(sample)) |> 
+  filter(present_test_types == 3) |>  # this filters to only show participants who have completed all pre-post tests and practice
+  group_by(anon_student_id) |> 
+  summarise(conditions_completed = n_distinct(condition)) |> 
+  filter(conditions_completed == 8) 
+
+# Get the list of student ids who completed all conditions
+students_completed_all <- num_questions$anon_student_id # create a vector containing the participants who have completed all 8 conditions
+
+# Filter the combined data to include only students who completed all conditions
+filtered_data <- combined_prepost |> 
+  filter(anon_student_id %in% students_completed_all)
+
+# Count the number of times each question was seen
+question_counts <- filtered_data |> 
+  group_by(problem_name) |>   
+  summarise(count = n()) |> 
+  arrange(desc(count)) # display count from high to low to see if there is any potential bias
+
+question_counts
+```
+
