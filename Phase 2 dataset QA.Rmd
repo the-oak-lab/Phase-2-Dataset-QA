@@ -192,5 +192,18 @@ question_counts <- filtered_data |>
   arrange(desc(count)) # display count from high to low to see if there is any potential bias
 
 question_counts
+write_csv(question_counts, "question_counts.csv")
+
+```
+```{r}
+# To finalize the QA, create a spreadsheet that has for each participant how many questions they have in the pre, post, and practice for each condition
+num_question_by_student <- combined_prepost |> 
+  group_by(anon_student_id, condition, sample) |> 
+  summarise(question_count = n(), .groups = 'drop')
+
+num_question_wide <- num_question_by_student |> 
+  pivot_wider(names_from = sample, values_from = question_count, values_fill = list(question_count = 0))
+
+write_csv(num_question_wide, "student_question_counts.csv")
 ```
 
