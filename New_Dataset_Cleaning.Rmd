@@ -62,7 +62,7 @@ new_df_lo <- new_df |>
   ) |> 
   ungroup()
 
-write_csv(new_df_lo, "new_spacing_time.csv")
+write_csv(new_df_lo, "new_spacing_time.csv") 
 ```
 
 ### Remove all studentids with missing/more trials to only include those participants with all trials completed
@@ -77,11 +77,12 @@ filtered_new_df <- new_df |>
 ```
 
 ------------------------------------------------------------------------------------------
+
 ## Plots 
 
-### Question 1: 
+### 1: Learning Objective Plots
 
-***Does learning object spacing (High vs. Low) affect the improvement in the number of correct answers from pretest to posttest?***
+***Does learning object spacing (High vs. Low) affect the improvement in the mean number of correct answers from pretest to posttest?***
 
 
 ```{r}
@@ -91,12 +92,33 @@ new_df_summary_lo <- filtered_new_df |>
   summarize(correct_answers = sum(corrects)) |> 
   ungroup()
 
+new_df_summary_lo$sample <- factor(new_df_summary_lo$sample, levels = c("Pretest", "Posttest"))
+
+mean_lo_df <- filtered_new_df |> 
+  filter(sample %in% c("Pretest", "Posttest")) |> 
+  group_by(anon_student_id, `Learning objective spacing`, sample) |> 
+  summarize(mean_correct = mean(corrects), se_correct = sd(corrects) / sqrt(n())) |> 
+  ungroup()
 # ggplot(new_df_summary, aes(x = sample, y = correct_answers, group = anon_student_id, color = `Learning objective spacing`)) +
 #   # geom_line() +
 #   geom_point() +
 #   labs(title = "Improvement from Pretest to Posttest by Condition", x = "Test", y = "Number of Correct Answers")
 
 ```
+```{r}
+ggplot(mean_lo_df, aes(x = sample, y = mean_correct, fill = `Learning objective spacing`)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.7) +
+  # geom_errorbar(aes(ymin = mean_correct - se_correct, ymax = mean_correct + se_correct), 
+  #               position = position_dodge(width = 0.9), width = 0.25) +
+  labs(title = "Mean Pretest and Posttest Scores by Learning Objective Spacing",
+       x = "Test",
+       y = "Mean Correct Answers") +
+  coord_cartesian(ylim = c(0.3, 1)) +
+  scale_fill_manual(values = c("yellow", "skyblue")) +
+  theme_minimal()
+```
+***Does learning object spacing (High vs. Low) affect the improvement in the number of correct answers from pretest to posttest?***
+
 ```{r}
 ggplot(new_df_summary_lo, aes(x = sample, y = correct_answers, fill = `Learning objective spacing`)) +
   geom_bar(stat = "identity", position = position_dodge()) +
@@ -112,21 +134,43 @@ ggplot(new_df_summary_lo, aes(x = sample, y = correct_answers, fill = `Learning 
 
 ------------------------------------------------------------------------------------------
 
-### Question 2:
+### 2: Topic Spacing Plots
 
-***Does topic spacing (High vs. Low) affect the improvement in the number of correct answers from pretest to posttest?***
+***Does topic spacing (High vs. Low) affect the improvement in the mean number of correct answers from pretest to posttest?***
 
 ```{r}
 new_df_summary_topic <- filtered_new_df |> 
   filter(sample %in% c("Pretest", "Posttest")) |> 
   group_by(anon_student_id, `Topic spacing`, sample) |> 
-  summarize(correct_answers = sum(corrects)) |> 
+  summarize(correct_answers = sum(corrects), mean_correct = mean(corrects),
+    se_correct = sd(corrects) / sqrt(n())) |> 
   ungroup()
 
+new_df_summary_topic$sample <- factor(new_df_summary_topic$sample, levels = c("Pretest", "Posttest"))
+```
+
+```{r}
+ggplot(new_df_summary_topic, aes(x = sample, y = mean_correct, fill = `Topic spacing`)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.7) +
+  # geom_errorbar(aes(ymin = mean_correct - se_correct, ymax = mean_correct + se_correct), 
+  #               position = position_dodge(width = 0.9), width = 0.25) +
+  labs(title = "Mean Pretest and Posttest Scores by Topic Spacing",
+       x = "Test",
+       y = "Mean Correct Answers") +
+  scale_fill_manual(values = c("orange", "lightblue")) +
+  coord_cartesian(ylim = c(0.8, 1)) +
+  theme_minimal()
+
+```
+
+***Does topic spacing (High vs. Low) affect the improvement in the number of correct answers from pretest to posttest?***
+
+```{r}
 ggplot(new_df_summary_topic, aes(x = sample, y = correct_answers, fill = `Topic spacing`)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   labs(title = "Number of Correct Answers by Topic Spacing and Test", x = "Test", y = "Number of Correct Answers") +
   scale_fill_manual(values = c("orange", "lightblue")) +
+  coord_cartesian(ylim = c(20, 30)) +
   theme_minimal()
 
 ```
@@ -134,7 +178,37 @@ This plot suggests that the number of correct answers in the "high topic" and "l
 
 ------------------------------------------------------------------------------------------
 
-### Question 3: 
+### 3: Question Variability Plot
+
+***Does question variability (High vs. Low) affect the improvement in the mean number of correct answers from pretest to posttest?***
+
+```{r}
+new_df_summary_qv <- filtered_new_df |> 
+  filter(sample %in% c("Pretest", "Posttest")) |> 
+  group_by(anon_student_id, `Question variability`, sample) |> 
+  summarize(correct_answers = sum(corrects), mean_correct = mean(corrects),
+    se_correct = sd(corrects) / sqrt(n())) |> 
+  ungroup()
+
+new_df_summary_qv$sample <- factor(new_df_summary_qv$sample, levels = c("Pretest", "Posttest"))
+
+```
+```{r}
+ggplot(new_df_summary_qv, aes(x = sample, y = mean_correct, fill = `Question variability`)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9), width = 0.7) +
+  # geom_errorbar(aes(ymin = mean_correct - se_correct, ymax = mean_correct + se_correct), 
+  #               position = position_dodge(width = 0.9), width = 0.25) +
+  labs(title = "Mean Pretest and Posttest Scores by Question Variability",
+       x = "Test",
+       y = "Mean Correct Answers") +
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_minimal()
+
+```
+
+------------------------------------------------------------------------------------------
+
+### Question 4: 
 
 ***Is there a difference in the mean pretest and posttest scores between different combinations of topic spacing and learning objective spacing conditions?***
 
@@ -145,24 +219,34 @@ Description: This plot will show the mean pretest and posttest scores for each c
 df_mean_scores <- filtered_new_df |> 
   filter(sample %in% c("Pretest", "Posttest")) |> 
   group_by(`Topic spacing`, `Learning objective spacing`, sample) |> 
-  summarize(mean_correct = mean(corrects)) |> 
+  summarize(
+    mean_correct = mean(corrects),
+    se_correct = sd(corrects) / sqrt(n())
+  ) |> 
   ungroup()
+
+# Convert the sample column to a factor with the specified order so "Pretest" shows up before "Posttest"
+df_mean_scores$sample <- factor(df_mean_scores$sample, levels = c("Pretest", "Posttest"))
 
 # Create the bar plot
 ggplot(df_mean_scores, aes(x = sample, y = mean_correct, fill = `Topic spacing`)) +
   geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_correct - se_correct, ymax = mean_correct + se_correct), 
+                position = position_dodge(width = 0.9), width = 0.25) +
+  facet_wrap(~ `Learning objective spacing`) +
   facet_wrap(~ `Learning objective spacing`) +
   labs(title = "Mean Pretest and Posttest Scores by Topic Spacing and Learning Objective Spacing", x = "Test", y = "Mean Correct Answers") +
   scale_fill_manual(values = c("orange", "blue")) +
+  coord_cartesian(ylim = c(0.3, 0.6)) +
   theme_minimal()
 
 ```
 
 ------------------------------------------------------------------------------------------
 
-### Question 4:
+### Question 5:
 
-***Is there a difference in the variability of improvement in correct answers between conditions (specifically, Learning Obejective Spacing)?***
+***Is there a difference in the variability of improvement in correct answers between conditions (specifically, Learning Objective Spacing)?***
 
 Description of the plot below: Boxplot of the difference in the number of correct answers between pretest and posttest by condition (LO spacing).
 
@@ -182,7 +266,7 @@ The short and squished boxplot for the "High LO spacing" condition suggests that
 
 ------------------------------------------------------------------------------------------
 
-### Question 5:
+### Question 6:
 
 ***How does the improvement in test scores differ between students with different levels of prior knowledge (e.g., based on pretest scores) across conditions?***
 
@@ -199,7 +283,7 @@ Hypothesis: Students with higher pretest scores will show less improvement compa
 
 ------------------------------------------------------------------------------------------
 
-### Question 6:
+### Question 7:
 
 ***Is there a difference in the variability of improvement in correct answers between conditions (specifically, Topic Spacing)?***
 
